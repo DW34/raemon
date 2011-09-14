@@ -85,7 +85,7 @@ module Raemon
     def setup_logger
       target = detach ? root.join("log/#{env}.log") : STDOUT
 
-      @logger = ::Logger.new(target)
+      @logger = ::Logger.new(target, 'weekly')
       @logger.formatter = ::Logger::Formatter.new
       @logger
     end
