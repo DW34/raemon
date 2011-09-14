@@ -83,7 +83,7 @@ module Raemon
     private
 
     def setup_logger
-      target = detach ? root.join("log/#{server_name}.log") : STDOUT
+      target = detach ? root.join("log/#{env}.log") : STDOUT
 
       @logger = ::Logger.new(target)
       @logger.formatter = ::Logger::Formatter.new
