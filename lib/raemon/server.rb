@@ -79,7 +79,7 @@ module Raemon
       end
 
       def load_folder(path)
-        Dir["#{path}/**/*.rb"].each { |file| require(file) }
+        Dir["#{path}/*.rb"].each { |file| require(file) }
       end
 
       def server_name_key
