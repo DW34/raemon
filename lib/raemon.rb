@@ -42,4 +42,12 @@ module Raemon
   def self.root=(root)
     config.root = root
   end
+  
+  def self.settings
+    config.settings
+  end
+  
+  def self.settings=(settings)
+    config.settings = settings
+  end
 end

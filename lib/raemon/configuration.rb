@@ -5,19 +5,16 @@ module Raemon
     extend self
 
     DEFAULT_SERVER_NAME = 'Raemon'
-
     DEFAULT_DETACH = false
-
     DEFAULT_NUM_WORKERS = 1
-
     DEFAULT_TIMEOUT = 3 * 60 # 3 minutes
-
     DEFAULT_MEMORY_LIMIT_IN_MEGABYTES = 50
-
     DEFAULT_ENVIRONMENT = 'development'
+    DEFAULT_LOG_LEVEL = Logger::INFO
 
-    DEFAULT_LOG_LEVEL = :info
-
+    attr_accessor :options
+    @options = {}
+    
     attr_accessor :settings
     @settings = {}
 
@@ -33,27 +30,22 @@ module Raemon
     # @note Copied from Mongoid. Thank you!
     #
     # @private
-    def option(name, options = {})
+    def option(name, opts={})
       define_method(name) do
-        settings.has_key?(name) ? settings[name] : options[:default]
+        options.has_key?(name) ? options[name] : opts[:default]
       end
 
-      define_method("#{name}=") { |value| settings[name] = value }
+      define_method("#{name}=") { |value| options[name] = value }
       define_method("#{name}?") { !!send(name) }
     end
 
-    option :server_name, :default => DEFAULT_SERVER_NAME
-
-    option :detach, :default => DEFAULT_DETACH
-
-    option :num_workers, :default => DEFAULT_NUM_WORKERS
-
-    option :timeout, :default => DEFAULT_TIMEOUT
-
-    option :env, :default => DEFAULT_ENVIRONMENT
-
-    option :memory_limit, :default => DEFAULT_MEMORY_LIMIT_IN_MEGABYTES
-
+    option :server_name,    :default => DEFAULT_SERVER_NAME
+    option :detach,         :default => DEFAULT_DETACH
+    option :num_workers,    :default => DEFAULT_NUM_WORKERS
+    option :timeout,        :default => DEFAULT_TIMEOUT
+    option :env,            :default => DEFAULT_ENVIRONMENT
+    option :memory_limit,   :default => DEFAULT_MEMORY_LIMIT_IN_MEGABYTES
+    option :log_level,      :default => DEFAULT_LOG_LEVEL
     option :worker_class
 
     # @param [Logger] logger Some logger to use with this library
@@ -80,14 +72,17 @@ module Raemon
       end
     end
 
+
     private
 
-    def setup_logger
-      target = detach ? root.join("log/#{env}.log") : STDOUT
+      def setup_logger
+        target = detach ? root.join("log/#{env}.log") : STDOUT
+        
+        @logger = ::Logger.new(target)
+        @logger.formatter = ::Logger::Formatter.new
+        @logger.level = log_level
+        @logger
+      end
 
-      @logger = ::Logger.new(target)
-      @logger.formatter = ::Logger::Formatter.new
-      @logger
-    end
   end
 end

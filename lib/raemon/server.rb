@@ -1,17 +1,26 @@
 module Raemon
-  module Server
-    extend self
+  class Server
 
-    # Initializes application components without starting the master process
-    def boot!
-      load_environment
-      load_lib # Must be second so that initializers have access to lib
-      load_initializers
+    # TODO.. this needs to be refactored...
+    def self.config; Raemon.config; end
+    def self.env; Raemon.env; end
+    def self.settings; Raemon.settings; end
+
+    def self.boot!; new.boot!; end
+    def self.shutdown!; new.shutdown!; end
+
+    def initialize
     end
 
-    # Start the master daemon. Exits the script if the master daemon is
-    # already running.
-    def startup!
+    def config; self.class.config; end
+    def env; self.class.env; end
+    def settings; self.class.settings; end
+
+    def boot!
+      load_environment
+      load_lib
+      load_initializers
+      
       stop_if_running!
       start_master_daemon
     end
