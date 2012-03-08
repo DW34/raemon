@@ -395,10 +395,14 @@ module Raemon
 
         if @last_memory_chk + 60 < Time.now.to_i
           @last_memory_chk = Time.now.to_i
+          memory_limit_in_bytes = memory_limit * 1024
+
           WORKERS.dup.each_pair do |wpid, worker|
-            if memory_usage(wpid) > (memory_limit*1024)
-              logger.warn "memory limit (#{memory_limit}MB) reached by worker=#{worker.id}"
-              kill_worker(:QUIT, wpid)
+            memory_used = memory_usage(wpid)
+
+            if memory_used > memory_limit_in_bytes
+              logger.warn "memory limit (#{memory_limit}MB) reached by worker=#{worker.id} (USED: #{memory_used})"
+              kill_worker :QUIT, wpid
             end
           end
         end
