@@ -1,5 +1,7 @@
 module Raemon
   class Master
+    include Instrumentation
+
     WORKERS = {}
 
     SELF_PIPE = []

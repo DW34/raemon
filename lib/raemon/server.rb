@@ -1,6 +1,7 @@
 module Raemon
   module Server
     extend self
+    include Instrumentation
 
     # Initializes application components without starting the master process
     def boot!
