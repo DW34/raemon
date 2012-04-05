@@ -39,6 +39,10 @@ describe Raemon::Configuration do
 
   its(:logger) { should be_a(Logger) }
 
+  its(:instrumentor) { should be_nil }
+
+  its(:instrumentor_name) { should eq(described_class::DEFAULT_INSTRUMENTOR_NAME) }
+
   describe '.logger=' do
     let(:fake_logger) { double }
 
