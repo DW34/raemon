@@ -68,7 +68,7 @@ module Raemon
         kill_each_worker(:KILL)
       end
 
-      instrument 'master.stop', :timestamp => Time.now.to_i
+      instrument 'master.stop', :pid => Process.pid
     end
 
     def worker_heartbeat!(worker)
@@ -101,7 +101,7 @@ module Raemon
       # one-at-a-time time and we'll happily drop signals in case somebody
       # is signalling us too often.
       def master_loop!
-        instrument 'master.start', :timestamp => Time.now.to_i
+        instrument 'master.start', :pid => Process.pid
 
         # this pipe is used to wake us up from select(2) in #join when signals
         # are trapped.  See trap_deferred
@@ -215,7 +215,7 @@ module Raemon
             worker = WORKERS.delete(wpid) and worker.pulse.close rescue nil
             worker_id = worker.id rescue 'unknown'
 
-            instrument 'worker.reaped', :timestamp => Time.now.to_i
+            instrument 'worker.reaped', :pid => worker.pid
 
             logger.info "reaped #{status.inspect} worker=#{worker_id}"
           end
@@ -243,7 +243,7 @@ module Raemon
             logger.warn "worker=#{worker.id} PID:#{wpid} stat error: #{ex.inspect}"
 
             kill_worker(:QUIT, wpid)
-            instrument 'worker.killed', :timestamp => timestamp
+            instrument 'worker.killed', :pid => wpid
 
             next
           end
@@ -255,7 +255,7 @@ module Raemon
           logger.error "worker=#{worker.id} PID:#{wpid} timeout (#{diff}s > #{timeout}s), killing"
 
           kill_worker(:KILL, wpid) # take no prisoners for timeout violations
-          instrument 'worker.killed', :timestamp => timestamp
+          instrument 'worker.killed', :pid => wpid
         end
       end
 
@@ -329,13 +329,14 @@ module Raemon
         # Graceful shutdown
         trap(:QUIT) do
           worker.stop
+          instrument 'worker.stop', worker.pid
           exit!(0)
         end
 
         # Immediate termination
         [:TERM, :INT].each do |sig|
           trap(sig) do
-            instrument 'worker.stop', :timetamp => Time.now.to_i
+            instrument 'worker.stop', worker.pid
             exit!(0)
           end
         end

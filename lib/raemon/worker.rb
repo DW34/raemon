@@ -21,13 +21,13 @@ module Raemon
       end
 
       def start
-        logger.info "=> Starting worker #{Process.pid}"
-        instrument 'worker.start', :timestamp => Time.now.to_i
+        logger.info "=> Starting worker #{pid}"
+        instrument 'worker.start', :pid => pid
       end
 
       def stop
-        logger.info "=> Stopping worker #{Process.pid}"
-        instrument 'worker.stop', :timestamp => Time.now.to_i
+        logger.info "=> Stopping worker #{pid}"
+        instrument 'worker.stop', :pid => pid
       end
 
       def run
