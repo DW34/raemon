@@ -58,7 +58,9 @@ module Raemon
       kill_each_worker(graceful ? :QUIT : :TERM)
       timeleft = timeout
       step = 0.2
+
       reap_all_workers
+
       until WORKERS.empty?
         sleep(step)
         reap_all_workers
@@ -208,6 +210,8 @@ module Raemon
             worker = WORKERS.delete(wpid) and worker.pulse.close rescue nil
             worker_id = worker.id rescue 'unknown'
 
+            instrument 'worker.reaped', :timestamp => Time.now.to_i
+
             logger.info "reaped #{status.inspect} worker=#{worker_id}"
           end
         rescue Errno::ECHILD
@@ -226,28 +230,40 @@ module Raemon
         diff = stat = nil
 
         WORKERS.dup.each_pair do |wpid, worker|
+          timestamp = Time.now.to_i
+
           begin
             stat = worker.pulse.stat
           rescue => ex
             logger.warn "worker=#{worker.id} PID:#{wpid} stat error: #{ex.inspect}"
+
             kill_worker(:QUIT, wpid)
+            instrument 'worker.killed', :timestamp => timestamp
+
             next
           end
+
           stat.mode == 0100000 and next
+
           (diff = (Time.now - stat.ctime)) <= timeout and next
+
           logger.error "worker=#{worker.id} PID:#{wpid} timeout (#{diff}s > #{timeout}s), killing"
+
           kill_worker(:KILL, wpid) # take no prisoners for timeout violations
+          instrument 'worker.killed', :timestamp => timestamp
         end
       end
 
-      # Spawn workers, and initalize new workers if some are no longer running
+      # Fork the worker processes wrapped in the worker loop
       def spawn_workers
         (0...num_workers).each do |id|
           WORKERS.values.include?(id) and next
+
           worker = worker_class.new(self, id, Raemon::Util.tmpio)
 
-          # Fork the worker processes wrapped in the worker loop
-          WORKERS[fork { worker_loop!(worker) }] = worker
+          worker_pid = fork { worker_loop!(worker) }
+
+          WORKERS[worker_pid] = worker
         end
       end
 
@@ -259,7 +275,9 @@ module Raemon
         elsif off == num_workers
           # None of the workers are running, lets be gentle
           @spawn_attempts ||= 0
+
           sleep 1 if @spawn_attempts > 1
+
           if timeout > 0 && @spawn_attempts > timeout
             # We couldn't get the workers going after timeout
             # seconds, so let's assume this will never work
@@ -305,16 +323,21 @@ module Raemon
 
         # Graceful shutdown
         trap(:QUIT) do
-          worker.stop if worker.respond_to?(:stop)
+          worker.stop
           exit!(0)
         end
 
         # Immediate termination
-        [:TERM, :INT].each { |sig| trap(sig) { exit!(0) } }
+        [:TERM, :INT].each do |sig|
+          trap(sig) do
+            instrument 'worker.stop', :timetamp => Time.now.to_i
+            exit!(0)
+          end
+        end
 
         # Worker start
         logger.info "worker=#{worker.id} ready"
-        worker.start if worker.respond_to?(:start)
+        worker.start
 
         # Worker run loop
         worker.run

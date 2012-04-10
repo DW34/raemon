@@ -2,6 +2,7 @@ module Raemon
   module Worker
     def self.included(base)
       base.send :include, InstanceMethods
+      base.send :include, Instrumentation
     end
 
     module InstanceMethods
@@ -17,6 +18,14 @@ module Raemon
 
       def ==(other_id)
         @id == other_id
+      end
+
+      def start
+        instrument 'worker.start', :timestamp => Time.now.to_i
+      end
+
+      def stop
+        instrument 'worker.stop', :timestamp => Time.now.to_i
       end
 
       def run
