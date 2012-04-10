@@ -240,7 +240,6 @@ module Raemon
             logger.warn "worker=#{worker.id} PID:#{wpid} stat error: #{ex.inspect}"
 
             kill_worker(:QUIT, wpid)
-            instrument 'worker.stop', :pid => wpid
 
             next
           end
@@ -326,16 +325,12 @@ module Raemon
         # Graceful shutdown
         trap(:QUIT) do
           worker.stop
-          instrument 'worker.stop', worker.pid
           exit!(0)
         end
 
         # Immediate termination
         [:TERM, :INT].each do |sig|
-          trap(sig) do
-            instrument 'worker.stop', worker.pid
-            exit!(0)
-          end
+          trap(sig) { exit!(0) }
         end
 
         # Worker start
