@@ -12,14 +12,12 @@ class JobWorker
   include Raemon::Worker
   
   def start
-    logger.info "=> Starting worker #{Process.pid}"
-    
+    super
     @beanstalk = Beanstalk::Pool.new(['localhost:11300'])
   end
   
   def stop
-    logger.info "=> Stopping worker #{Process.pid}"
-    
+    super
     @beanstalk.close
   end
   

@@ -10,11 +10,11 @@ class Test
   include Raemon::Worker
   
   def start
-    logger.info "=> Starting worker #{Process.pid}"
+    super
   end
 
   def stop
-    logger.info "=> Stopping worker #{Process.pid}"
+    super
   end
 
   def run

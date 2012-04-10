@@ -18,6 +18,8 @@ module Raemon
 
     DEFAULT_LOG_LEVEL = :info
 
+    DEFAULT_INSTRUMENTOR_NAME = 'raemon'
+
     attr_accessor :settings
     @settings = {}
 
@@ -55,6 +57,10 @@ module Raemon
     option :memory_limit, :default => DEFAULT_MEMORY_LIMIT_IN_MEGABYTES
 
     option :worker_class
+
+    option :instrumentor
+
+    option :instrumentor_name, :default => DEFAULT_INSTRUMENTOR_NAME
 
     # @param [Logger] logger Some logger to use with this library
     def logger=(logger)

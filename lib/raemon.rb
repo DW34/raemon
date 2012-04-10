@@ -3,11 +3,12 @@ require 'tmpdir'
 require 'logger'
 
 module Raemon
-  autoload :Configuration, 'raemon/configuration'
-  autoload :Master,        'raemon/master'
-  autoload :Worker,        'raemon/worker'
-  autoload :Server,        'raemon/server'
-  autoload :Util,          'raemon/util'
+  autoload :Configuration,   'raemon/configuration'
+  autoload :Master,          'raemon/master'
+  autoload :Worker,          'raemon/worker'
+  autoload :Server,          'raemon/server'
+  autoload :Util,            'raemon/util'
+  autoload :Instrumentation, 'raemon/instrumentation'
 
   # @return [Logger] the logger used by this library
   def self.logger
