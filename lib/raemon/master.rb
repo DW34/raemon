@@ -128,7 +128,6 @@ module Raemon
               maintain_worker_count if respawn
               master_sleep
             when :QUIT # graceful shutdown
-              intrument 'master.stop', :timestamp => Time.now.to_i
               break
             when :TERM, :INT # immediate shutdown
               stop(false)
