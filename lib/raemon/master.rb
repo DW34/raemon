@@ -47,12 +47,7 @@ module Raemon
       @num_workers  = num_workers
       @worker_class = worker_class
 
-      # Check if the worker implements our interface
-      if !worker_class.include?(Raemon::Worker)
-        logger.error "** Invalid Raemon worker"
-        logger.close
-        exit
-      end
+      ensure_worker_is_valid
 
       # Start the master loop which spawns and monitors workers
       master_loop!
@@ -90,6 +85,7 @@ module Raemon
         if worker.pulse
           logger.error "Unhandled listen loop exception #{ex.inspect}"
           logger.error ex.backtrace.join("\n")
+          instrument 'error', :error => ex
         end
       end
     end
@@ -157,6 +153,7 @@ module Raemon
         rescue => ex
           logger.error "Unhandled master loop exception #{ex.inspect}."
           logger.error ex.backtrace.join("\n")
+          instrument 'error', :error => ex
           retry
         end
 
@@ -415,6 +412,19 @@ module Raemon
 
       def memory_usage(pid)
         `ps -o rss= -p #{pid}`.to_i
+      end
+
+      # Check if the worker implements our interface
+      def ensure_worker_is_valid
+        unless worker_class.include?(Raemon::Worker)
+          error = 'Invalid Raemon worker'
+          logger.error(error)
+          logger.close
+
+          instrument 'error', :error => error
+
+          exit
+        end
       end
   end
 end
