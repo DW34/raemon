@@ -214,7 +214,7 @@ module Raemon
             worker = WORKERS.delete(wpid) and worker.pulse.close rescue nil
             worker_id = worker.id rescue 'unknown'
 
-            instrument 'worker.reaped', :pid => worker.pid
+            instrument 'worker.stop', :pid => worker.pid
 
             logger.info "reaped #{status.inspect} worker=#{worker_id}"
           end
@@ -234,15 +234,13 @@ module Raemon
         diff = stat = nil
 
         WORKERS.dup.each_pair do |wpid, worker|
-          timestamp = Time.now.to_i
-
           begin
             stat = worker.pulse.stat
           rescue => ex
             logger.warn "worker=#{worker.id} PID:#{wpid} stat error: #{ex.inspect}"
 
             kill_worker(:QUIT, wpid)
-            instrument 'worker.killed', :pid => wpid
+            instrument 'worker.stop', :pid => wpid
 
             next
           end
@@ -254,7 +252,7 @@ module Raemon
           logger.error "worker=#{worker.id} PID:#{wpid} timeout (#{diff}s > #{timeout}s), killing"
 
           kill_worker(:KILL, wpid) # take no prisoners for timeout violations
-          instrument 'worker.killed', :pid => wpid
+          instrument 'worker.stop', :pid => wpid
         end
       end
 
