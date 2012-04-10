@@ -67,6 +67,8 @@ module Raemon
         (timeleft -= step) > 0 and next
         kill_each_worker(:KILL)
       end
+
+      instrument 'master.stop', :timestamp => Time.now.to_i
     end
 
     def worker_heartbeat!(worker)
@@ -99,6 +101,8 @@ module Raemon
       # one-at-a-time time and we'll happily drop signals in case somebody
       # is signalling us too often.
       def master_loop!
+        instrument 'master.start', :timestamp => Time.now.to_i
+
         # this pipe is used to wake us up from select(2) in #join when signals
         # are trapped.  See trap_deferred
         init_self_pipe!
@@ -124,6 +128,7 @@ module Raemon
               maintain_worker_count if respawn
               master_sleep
             when :QUIT # graceful shutdown
+              intrument 'master.stop', :timestamp => Time.now.to_i
               break
             when :TERM, :INT # immediate shutdown
               stop(false)
