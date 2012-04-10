@@ -8,10 +8,10 @@ module Raemon
 
     SIG_QUEUE = []
 
-    CHUNK_SIZE = (16*1024)
+    CHUNK_SIZE = (16 * 1024)
 
     # list of signals we care about and trap in master.
-    QUEUE_SIGS = [ :WINCH, :QUIT, :INT, :TERM, :USR1, :USR2, :HUP, :TTIN, :TTOU ]
+    QUEUE_SIGS = [:WINCH, :QUIT, :INT, :TERM, :USR1, :USR2, :HUP, :TTIN, :TTOU]
 
     attr_accessor :name, :num_workers, :worker_class,
                   :master_pid, :pid_file,
@@ -88,7 +88,7 @@ module Raemon
         end
       rescue => ex
         if worker.pulse
-          logger.error "Unhandled listen loop exception #{ex.inspect}."
+          logger.error "Unhandled listen loop exception #{ex.inspect}"
           logger.error ex.backtrace.join("\n")
         end
       end
@@ -209,8 +209,9 @@ module Raemon
             wpid, status = Process.waitpid2(-1, Process::WNOHANG)
             wpid or break
             worker = WORKERS.delete(wpid) and worker.pulse.close rescue nil
-            logger.info "reaped #{status.inspect} " \
-                        "worker=#{worker.id rescue 'unknown'}"
+            worker_id = worker.id rescue 'unknown'
+
+            logger.info "reaped #{status.inspect} worker=#{worker_id}"
           end
         rescue Errno::ECHILD
         end
@@ -237,8 +238,7 @@ module Raemon
           end
           stat.mode == 0100000 and next
           (diff = (Time.now - stat.ctime)) <= timeout and next
-          logger.error "worker=#{worker.id} PID:#{wpid} timeout " \
-                       "(#{diff}s > #{timeout}s), killing"
+          logger.error "worker=#{worker.id} PID:#{wpid} timeout (#{diff}s > #{timeout}s), killing"
           kill_worker(:KILL, wpid) # take no prisoners for timeout violations
         end
       end
@@ -390,6 +390,10 @@ module Raemon
         File.open(pid_file, 'w') { |f| f.puts(Process.pid) } if pid_file
       end
 
+      def memory_limit_in_bytes
+        memory_limit * 1024
+      end
+
       # Check memory usage every 60 seconds if a memory limit is enforced
       def monitor_memory_usage
         return if memory_limit.nil?
@@ -397,7 +401,6 @@ module Raemon
 
         if @last_memory_chk + 60 < Time.now.to_i
           @last_memory_chk = Time.now.to_i
-          memory_limit_in_bytes = memory_limit * 1024
 
           WORKERS.dup.each_pair do |wpid, worker|
             memory_used = memory_usage(wpid)
