@@ -34,6 +34,12 @@ module Raemon
         raise NotImplementedError, "must be implemented in your class"
       end
 
+      def memory_usage
+        usage = `ps -o rss= -p #{pid}`.to_i
+        instrument 'worker.memory_usage', :pid => pid, :memory_used => usage
+        return usage
+      end
+
       def heartbeat!
         master.worker_heartbeat!(self)
       end

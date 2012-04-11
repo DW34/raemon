@@ -411,14 +411,14 @@ module Raemon
       # Check memory usage every 60 seconds if a memory limit is enforced
       def monitor_memory_usage
         return if memory_limit.nil?
+
         @last_memory_chk ||= 0
 
         if @last_memory_chk + 60 < Time.now.to_i
           @last_memory_chk = Time.now.to_i
 
           WORKERS.dup.each_pair do |wpid, worker|
-            memory_used = memory_usage(wpid)
-            instrument 'worker.memory_usage', :pid => wpid, :memory_used => memory_used
+            memory_used = worker.memory_usage
 
             if memory_used > memory_limit_in_bytes
               logger.warn "memory limit (#{memory_limit}MB) reached by worker=#{worker.id} (USED: #{memory_used})"
@@ -426,10 +426,6 @@ module Raemon
             end
           end
         end
-      end
-
-      def memory_usage(pid)
-        `ps -o rss= -p #{pid}`.to_i
       end
 
       # Check if the worker implements our interface
