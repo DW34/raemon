@@ -30,12 +30,13 @@ module Raemon
     end
 
     def initialize(options={})
-      @detach         = options[:detach] || false
-      @name           = options[:name] || 'Raemon'
-      @pid_file       = options[:pid_file]
-      @logger         = options[:logger] || Logger.new(STDOUT)
-      @timeout        = options[:timeout] || 180 # 3 minutes
-      @memory_limit   = options[:memory_limit] # in MB
+      @detach       = options[:detach] || false
+      @name         = options[:name] || 'Raemon'
+      @pid_file     = options[:pid_file]
+      @logger       = options[:logger] || Logger.new(STDOUT)
+      @timeout      = options[:timeout] || 180 # 3 minutes
+      @memory_limit = options[:memory_limit] # in MB
+      @master_pid   = Process.pid
 
       daemonize if @detach
     end
@@ -43,11 +44,12 @@ module Raemon
     def start(num_workers, worker_class)
       logger.info "=> Starting #{name} with #{num_workers} worker(s)"
 
-      @master_pid   = Process.pid
       @num_workers  = num_workers
       @worker_class = worker_class
 
       ensure_worker_is_valid
+
+      instrument 'master.start', :pid => master_pid
 
       # Start the master loop which spawns and monitors workers
       master_loop!
@@ -68,7 +70,7 @@ module Raemon
         kill_each_worker(:KILL)
       end
 
-      instrument 'master.stop', :pid => Process.pid
+      instrument 'master.stop', :pid => master_pid
     end
 
     def worker_heartbeat!(worker)
@@ -101,8 +103,6 @@ module Raemon
       # one-at-a-time time and we'll happily drop signals in case somebody
       # is signalling us too often.
       def master_loop!
-        instrument 'master.start', :pid => Process.pid
-
         # this pipe is used to wake us up from select(2) in #join when signals
         # are trapped.  See trap_deferred
         init_self_pipe!
