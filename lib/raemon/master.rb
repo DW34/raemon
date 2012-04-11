@@ -47,7 +47,7 @@ module Raemon
       @num_workers  = num_workers
       @worker_class = worker_class
 
-      ensure_worker_is_valid
+      ensure_worker_class_is_valid
 
       instrument 'master.start', :pid => master_pid
 
@@ -429,7 +429,7 @@ module Raemon
       end
 
       # Check if the worker implements our interface
-      def ensure_worker_is_valid
+      def ensure_worker_class_is_valid
         unless worker_class.include?(Raemon::Worker)
           error = 'Invalid Raemon worker'
           logger.error(error)
