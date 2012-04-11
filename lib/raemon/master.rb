@@ -263,6 +263,7 @@ module Raemon
           worker = worker_class.new(self, id, Raemon::Util.tmpio)
 
           worker_pid = fork { worker_loop!(worker) }
+          worker.pid = worker_pid
 
           WORKERS[worker_pid] = worker
         end
@@ -305,6 +306,8 @@ module Raemon
       # gets rid of stuff the worker has no business keeping track of
       # to free some resources and drops all sig handlers.
       def init_worker_process(worker)
+        worker.pid = Process.pid
+
         QUEUE_SIGS.each { |sig| trap(sig, nil) }
         trap(:CHLD, 'DEFAULT')
         SIG_QUEUE.clear

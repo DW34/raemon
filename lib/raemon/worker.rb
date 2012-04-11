@@ -6,13 +6,13 @@ module Raemon
     end
 
     module InstanceMethods
-      attr_reader :master, :logger, :id, :pid, :pulse
+      attr_reader :master, :logger, :id, :pulse
+      attr_accessor :pid
 
       def initialize(master, id, pulse)
         @master = master
         @logger = master.logger
         @id     = id
-        @pid    = Process.pid
         @pulse  = pulse
       end
 
