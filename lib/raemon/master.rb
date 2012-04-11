@@ -280,10 +280,14 @@ module Raemon
           sleep 1 if @spawn_attempts > 1
 
           if timeout > 0 && @spawn_attempts > timeout
-            # We couldn't get the workers going after timeout
-            # seconds, so let's assume this will never work
-            logger.error "Unable to spawn workers after #{@spawn_attempts} attempts"
+            # We couldn't get the workers going after timeout seconds, so let's
+            # assume this will never work
+            message = "Unable to spawn workers after #{@spawn_attempts} attempts"
+            logger.error(message)
+            instrument 'error', :error => message
+
             master_quit
+
             return
           end
           @spawn_attempts += 1
