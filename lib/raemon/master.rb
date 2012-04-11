@@ -43,15 +43,13 @@ module Raemon
 
     def start(num_workers, worker_class)
       logger.info "=> Starting #{name} with #{num_workers} worker(s)"
+      instrument 'master.start', :pid => master_pid
 
       @num_workers  = num_workers
       @worker_class = worker_class
 
       ensure_worker_class_is_valid
 
-      instrument 'master.start', :pid => master_pid
-
-      # Start the master loop which spawns and monitors workers
       master_loop!
     end
 
@@ -98,21 +96,23 @@ module Raemon
 
     private
 
-      # monitors children and receives signals forever
-      # (or until a termination signal is sent).  This handles signals
-      # one-at-a-time time and we'll happily drop signals in case somebody
-      # is signalling us too often.
+      # monitors children and receives signals forever, or until a termination
+      # signal is sent. This handles signals one-at-a-time time and we'll
+      # happily drop signals in case somebody is signalling us too often.
       def master_loop!
         # this pipe is used to wake us up from select(2) in #join when signals
-        # are trapped.  See trap_deferred
+        # are trapped. See trap_deferred
         init_self_pipe!
+
         respawn = true
 
         QUEUE_SIGS.each { |sig| trap_deferred(sig) }
+
         trap(:CHLD) { |sig_nr| awaken_master }
 
         process_name 'master'
-        logger.info "master process ready"
+
+        logger.info 'master process ready'
 
         # Spawn workers for the first time
         maintain_worker_count
