@@ -333,11 +333,7 @@ module Raemon
           trap(sig) { exit!(0) }
         end
 
-        # Worker start
-        logger.info "worker=#{worker.id} ready"
         worker.start
-
-        # Worker run loop
         worker.run
       end
 

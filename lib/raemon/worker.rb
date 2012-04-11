@@ -21,12 +21,12 @@ module Raemon
       end
 
       def start
-        logger.info "=> Starting worker #{pid}"
+        logger.info "=> Starting worker (PID: #{pid}, ID: #{id})"
         instrument 'worker.start', :pid => pid
       end
 
       def stop
-        logger.info "=> Stopping worker #{pid}"
+        logger.info "=> Stopping worker (PID: #{pid}, ID: #{id})"
         instrument 'worker.stop', :pid => pid
       end
 
