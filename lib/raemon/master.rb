@@ -423,6 +423,7 @@ module Raemon
 
           WORKERS.dup.each_pair do |wpid, worker|
             memory_used = worker.memory_usage
+            instrument 'worker.memory_usage', :pid => wpid, :memory_used => memory_used
 
             if memory_used > memory_limit_in_bytes
               logger.warn "memory limit (#{memory_limit}MB) reached by worker=#{worker.id} (USED: #{memory_used})"
