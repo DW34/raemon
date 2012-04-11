@@ -300,8 +300,6 @@ module Raemon
 
       # gets rid of stuff the worker has no business keeping track of
       # to free some resources and drops all sig handlers.
-      # traps for USR1, USR2, and HUP may be set in the after_fork Proc
-      # by the user.
       def init_worker_process(worker)
         QUEUE_SIGS.each { |sig| trap(sig, nil) }
         trap(:CHLD, 'DEFAULT')
