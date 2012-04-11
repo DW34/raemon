@@ -30,26 +30,26 @@ module Raemon
     end
 
     def initialize(options={})
-      @detach         = options[:detach] || false
-      @name           = options[:name] || 'Raemon'
-      @pid_file       = options[:pid_file]
-      @logger         = options[:logger] || Logger.new(STDOUT)
-      @timeout        = options[:timeout] || 180 # 3 minutes
-      @memory_limit   = options[:memory_limit] # in MB
+      @detach       = options[:detach] || false
+      @name         = options[:name] || 'Raemon'
+      @pid_file     = options[:pid_file]
+      @logger       = options[:logger] || Logger.new(STDOUT)
+      @timeout      = options[:timeout] || 180 # 3 minutes
+      @memory_limit = options[:memory_limit] # in MB
+      @master_pid   = Process.pid
 
       daemonize if @detach
     end
 
     def start(num_workers, worker_class)
       logger.info "=> Starting #{name} with #{num_workers} worker(s)"
+      instrument 'master.start', :pid => master_pid
 
-      @master_pid   = Process.pid
       @num_workers  = num_workers
       @worker_class = worker_class
 
-      ensure_worker_is_valid
+      ensure_worker_class_is_valid
 
-      # Start the master loop which spawns and monitors workers
       master_loop!
     end
 
@@ -68,7 +68,7 @@ module Raemon
         kill_each_worker(:KILL)
       end
 
-      instrument 'master.stop', :pid => Process.pid
+      instrument 'master.stop', :pid => master_pid
     end
 
     def worker_heartbeat!(worker)
@@ -96,23 +96,23 @@ module Raemon
 
     private
 
-      # monitors children and receives signals forever
-      # (or until a termination signal is sent).  This handles signals
-      # one-at-a-time time and we'll happily drop signals in case somebody
-      # is signalling us too often.
+      # monitors children and receives signals forever, or until a termination
+      # signal is sent. This handles signals one-at-a-time time and we'll
+      # happily drop signals in case somebody is signalling us too often.
       def master_loop!
-        instrument 'master.start', :pid => Process.pid
-
         # this pipe is used to wake us up from select(2) in #join when signals
-        # are trapped.  See trap_deferred
+        # are trapped. See trap_deferred
         init_self_pipe!
+
         respawn = true
 
         QUEUE_SIGS.each { |sig| trap_deferred(sig) }
+
         trap(:CHLD) { |sig_nr| awaken_master }
 
         process_name 'master'
-        logger.info "master process ready"
+
+        logger.info 'master process ready'
 
         # Spawn workers for the first time
         maintain_worker_count
@@ -128,6 +128,7 @@ module Raemon
               maintain_worker_count if respawn
               master_sleep
             when :QUIT # graceful shutdown
+              stop
               break
             when :TERM, :INT # immediate shutdown
               stop(false)
@@ -163,8 +164,6 @@ module Raemon
           retry
         end
 
-        # Gracefully shutdown all workers on our way out
-        stop
         logger.info "master complete"
 
         # Close resources
@@ -214,7 +213,7 @@ module Raemon
             worker = WORKERS.delete(wpid) and worker.pulse.close rescue nil
             worker_id = worker.id rescue 'unknown'
 
-            instrument 'worker.reaped', :pid => worker.pid
+            instrument 'worker.stop', :pid => worker.pid
 
             logger.info "reaped #{status.inspect} worker=#{worker_id}"
           end
@@ -234,15 +233,12 @@ module Raemon
         diff = stat = nil
 
         WORKERS.dup.each_pair do |wpid, worker|
-          timestamp = Time.now.to_i
-
           begin
             stat = worker.pulse.stat
           rescue => ex
             logger.warn "worker=#{worker.id} PID:#{wpid} stat error: #{ex.inspect}"
 
             kill_worker(:QUIT, wpid)
-            instrument 'worker.killed', :pid => wpid
 
             next
           end
@@ -254,7 +250,7 @@ module Raemon
           logger.error "worker=#{worker.id} PID:#{wpid} timeout (#{diff}s > #{timeout}s), killing"
 
           kill_worker(:KILL, wpid) # take no prisoners for timeout violations
-          instrument 'worker.killed', :pid => wpid
+          instrument 'worker.stop', :pid => wpid
         end
       end
 
@@ -266,6 +262,7 @@ module Raemon
           worker = worker_class.new(self, id, Raemon::Util.tmpio)
 
           worker_pid = fork { worker_loop!(worker) }
+          worker.pid = worker_pid
 
           WORKERS[worker_pid] = worker
         end
@@ -283,10 +280,14 @@ module Raemon
           sleep 1 if @spawn_attempts > 1
 
           if timeout > 0 && @spawn_attempts > timeout
-            # We couldn't get the workers going after timeout
-            # seconds, so let's assume this will never work
-            logger.error "Unable to spawn workers after #{@spawn_attempts} attempts"
+            # We couldn't get the workers going after timeout seconds, so let's
+            # assume this will never work
+            message = "Unable to spawn workers after #{@spawn_attempts} attempts"
+            logger.error(message)
+            instrument 'error', :error => message
+
             master_quit
+
             return
           end
           @spawn_attempts += 1
@@ -303,9 +304,9 @@ module Raemon
 
       # gets rid of stuff the worker has no business keeping track of
       # to free some resources and drops all sig handlers.
-      # traps for USR1, USR2, and HUP may be set in the after_fork Proc
-      # by the user.
       def init_worker_process(worker)
+        worker.pid = Process.pid
+
         QUEUE_SIGS.each { |sig| trap(sig, nil) }
         trap(:CHLD, 'DEFAULT')
         SIG_QUEUE.clear
@@ -328,23 +329,15 @@ module Raemon
         # Graceful shutdown
         trap(:QUIT) do
           worker.stop
-          instrument 'worker.stop', worker.pid
           exit!(0)
         end
 
         # Immediate termination
         [:TERM, :INT].each do |sig|
-          trap(sig) do
-            instrument 'worker.stop', worker.pid
-            exit!(0)
-          end
+          trap(sig) { exit!(0) }
         end
 
-        # Worker start
-        logger.info "worker=#{worker.id} ready"
         worker.start
-
-        # Worker run loop
         worker.run
       end
 
@@ -422,14 +415,14 @@ module Raemon
       # Check memory usage every 60 seconds if a memory limit is enforced
       def monitor_memory_usage
         return if memory_limit.nil?
+
         @last_memory_chk ||= 0
 
         if @last_memory_chk + 60 < Time.now.to_i
           @last_memory_chk = Time.now.to_i
 
           WORKERS.dup.each_pair do |wpid, worker|
-            memory_used = memory_usage(wpid)
-            instrument 'worker.memory_usage', :pid => wpid, :memory_used => memory_used
+            memory_used = worker.memory_usage
 
             if memory_used > memory_limit_in_bytes
               logger.warn "memory limit (#{memory_limit}MB) reached by worker=#{worker.id} (USED: #{memory_used})"
@@ -439,12 +432,8 @@ module Raemon
         end
       end
 
-      def memory_usage(pid)
-        `ps -o rss= -p #{pid}`.to_i
-      end
-
       # Check if the worker implements our interface
-      def ensure_worker_is_valid
+      def ensure_worker_class_is_valid
         unless worker_class.include?(Raemon::Worker)
           error = 'Invalid Raemon worker'
           logger.error(error)

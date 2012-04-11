@@ -6,13 +6,13 @@ module Raemon
     end
 
     module InstanceMethods
-      attr_reader :master, :logger, :id, :pid, :pulse
+      attr_reader :master, :logger, :id, :pulse
+      attr_accessor :pid
 
       def initialize(master, id, pulse)
         @master = master
         @logger = master.logger
         @id     = id
-        @pid    = Process.pid
         @pulse  = pulse
       end
 
@@ -21,17 +21,23 @@ module Raemon
       end
 
       def start
-        logger.info "=> Starting worker #{pid}"
+        logger.info "=> Starting worker (PID: #{pid}, ID: #{id})"
         instrument 'worker.start', :pid => pid
       end
 
       def stop
-        logger.info "=> Stopping worker #{pid}"
+        logger.info "=> Stopping worker (PID: #{pid}, ID: #{id})"
         instrument 'worker.stop', :pid => pid
       end
 
       def run
         raise NotImplementedError, "must be implemented in your class"
+      end
+
+      def memory_usage
+        usage = `ps -o rss= -p #{pid}`.to_i
+        instrument 'worker.memory_usage', :pid => pid, :memory_used => usage
+        return usage
       end
 
       def heartbeat!
