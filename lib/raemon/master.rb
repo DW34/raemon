@@ -128,6 +128,7 @@ module Raemon
               maintain_worker_count if respawn
               master_sleep
             when :QUIT # graceful shutdown
+              stop
               break
             when :TERM, :INT # immediate shutdown
               stop(false)
@@ -163,8 +164,6 @@ module Raemon
           retry
         end
 
-        # Gracefully shutdown all workers on our way out
-        stop
         logger.info "master complete"
 
         # Close resources
