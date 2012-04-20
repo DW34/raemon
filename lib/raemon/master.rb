@@ -269,6 +269,11 @@ module Raemon
       end
 
       def maintain_worker_count
+        if num_workers == 0
+          logger.info "Quitting because our target worker count is zero"
+          exit
+        end
+
         off = num_workers - WORKERS.size
 
         if off.zero?
